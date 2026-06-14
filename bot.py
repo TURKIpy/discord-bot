@@ -99,9 +99,9 @@ async def mentions(ctx):
     for uid, count in sorted(channel_data.items(), key=lambda x: x[1], reverse=True):
         try:
             user = await bot.fetch_user(int(uid))
-            msg += f"{user.mention} — {count} منشن\n"
+            msg += f"{user.mention} — {count} تكليجه\n"
         except:
-            msg += f"User-{uid} — {count} منشن\n"
+            msg += f"User-{uid} — {count} تكليجه\n"
 
     await ctx.send(msg)
 
