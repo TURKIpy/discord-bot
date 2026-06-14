@@ -10,41 +10,48 @@ intents.message_content = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-DATA_FILE = "mentions.json"
+DATA_FILE = "data.json"
 CHANNEL_FILE = "channel.json"
 
 # ================== تحميل البيانات ==================
 
 if os.path.exists(DATA_FILE):
     with open(DATA_FILE, "r") as f:
-        mention_counts = json.load(f)
+        data = json.load(f)
 else:
-    mention_counts = {}
+    data = {}
 
 if os.path.exists(CHANNEL_FILE):
     with open(CHANNEL_FILE, "r") as f:
-        data = json.load(f)
-        CHANNEL_ID = data.get("channel_id")
+        CHANNEL_ID = json.load(f).get("channel_id")
 else:
     CHANNEL_ID = None
 
-
 def save_data():
     with open(DATA_FILE, "w") as f:
-        json.dump(mention_counts, f)
+        json.dump(data, f)
 
-
-def save_channel(channel_id):
+def save_channel(cid):
     with open(CHANNEL_FILE, "w") as f:
-        json.dump({"channel_id": channel_id}, f)
+        json.dump({"channel_id": cid}, f)
+
+# ================== جلب بيانات روم ==================
+
+def get_channel_data(channel_id):
+    cid = str(channel_id)
+    if cid not in data:
+        data[cid] = {}
+    return data[cid]
 
 # ================== فحص الروم القديم ==================
 
 async def scan_channel(channel):
+    channel_data = get_channel_data(channel.id)
+
     async for message in channel.history(limit=None):
         for user in message.mentions:
             uid = str(user.id)
-            mention_counts[uid] = mention_counts.get(uid, 0) + 1
+            channel_data[uid] = channel_data.get(uid, 0) + 1
 
     save_data()
 
@@ -57,43 +64,65 @@ async def setchannel(ctx):
     CHANNEL_ID = ctx.channel.id
     save_channel(CHANNEL_ID)
 
-    await ctx.send(f" {ctx.channel.mention}")
+    await ctx.send(f": {ctx.channel.mention}")
 
 @bot.command()
 async def mentions(ctx):
     global CHANNEL_ID
 
     if CHANNEL_ID is None:
-        await ctx.send("❌ ما فيه روم محدد، استخدم !setchannel")
+        await ctx.send("❌ استخدم !setchannel أول")
         return
 
     channel = bot.get_channel(CHANNEL_ID)
 
     if channel is None:
-        await ctx.send("❌ ما قدرت أوصل للروم المحدد")
+        await ctx.send("❌ ما قدرت أوصل للروم")
         return
 
-    # أول تشغيل = فحص القديم
-    if not mention_counts:
-        await ctx.send("⏳")
+    channel_data = get_channel_data(CHANNEL_ID)
+
+    # أول مرة يسوي سكان
+    if not channel_data:
+        await ctx.send("⏳ ...")
         await scan_channel(channel)
         await ctx.send("✅ ")
 
-    if not mention_counts:
-        await ctx.send("ما فيه أي بيانات.")
+    channel_data = get_channel_data(CHANNEL_ID)
+
+    if not channel_data:
+        await ctx.send("ما فيه بيانات.")
         return
 
-    msg = "** المكلجين بالترتيب :**\n\n"
+    msg = "**📊 توب المنغوليين:**\n\n"
 
-    for uid, count in sorted(mention_counts.items(), key=lambda x: x[1], reverse=True):
+    for uid, count in sorted(channel_data.items(), key=lambda x: x[1], reverse=True):
         try:
             user = await bot.fetch_user(int(uid))
-            msg += f"{user.mention}: {count}\n"
+            msg += f"{user.mention} — {count} منشن\n"
         except:
-            msg += f"User-{uid}: {count}\n"
+            msg += f"User-{uid} — {count} منشن\n"
 
     await ctx.send(msg)
 
-# ================== تشغيل البوت ==================
+# ================== تحديث مباشر (الجديد) ==================
+
+@bot.event
+async def on_message(message):
+    if message.author.bot:
+        return
+
+    if CHANNEL_ID and message.channel.id == CHANNEL_ID:
+        channel_data = get_channel_data(CHANNEL_ID)
+
+        for user in message.mentions:
+            uid = str(user.id)
+            channel_data[uid] = channel_data.get(uid, 0) + 1
+
+        save_data()
+
+    await bot.process_commands(message)
+
+# ================== تشغيل ==================
 
 bot.run(TOKEN)
