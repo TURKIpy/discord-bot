@@ -73,8 +73,7 @@ async def ai(ctx, *, msg):
         await ctx.send(response.choices[0].message.content)
 
     except Exception as e:
-        await ctx.send("صار خطأ في الذكاء الاصطناعي.")
-        print(e)
+    await ctx.send(f"❌ صار خطأ: {e}")
 
 @bot.command()
 async def setchannel(ctx):
