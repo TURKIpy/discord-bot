@@ -1,9 +1,11 @@
 import discord
+from openai import OpenAI
 from discord.ext import commands
 import json
 import os
 
 TOKEN = os.getenv("TOKEN")
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -56,6 +58,23 @@ async def scan_channel(channel):
     save_data()
 
 # ================== أوامر ==================
+
+@bot.command()
+async def ai(ctx, *, msg):
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "أنت مساعد داخل ديسكورد تجيب إجابات قصيرة وواضحة."},
+                {"role": "user", "content": msg}
+            ]
+        )
+
+        await ctx.send(response.choices[0].message.content)
+
+    except Exception as e:
+        await ctx.send("صار خطأ في الذكاء الاصطناعي.")
+        print(e)
 
 @bot.command()
 async def setchannel(ctx):
